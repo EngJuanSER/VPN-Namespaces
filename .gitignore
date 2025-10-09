@@ -1,0 +1,6 @@
+*.key
+*.conf
+config/*/*
+!config/*/.keep
+vod-data/*
+!vod-data/video.mp4
