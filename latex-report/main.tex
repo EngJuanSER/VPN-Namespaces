@@ -1,0 +1,149 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\geometry{left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+\setlength{\headheight}{14.5pt}
+\addtolength{\topmargin}{-2.5pt}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage{amssymb} % Para el símbolo de checkmark
+
+% Configuración de colores
+\definecolor{uniblue}{RGB}{0,51,102}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+% Configuración de listings para código
+\lstdefinelanguage{bash}{
+  keywords={break,case,catch,continue,else,elseif,end,for,function,
+    if,switch,try,while,echo,exit,return,local,sudo,source},
+  sensitive=true,
+  comment=[l]{\#},
+  morestring=[b]',
+  morestring=[b]"
+}
+
+\lstdefinelanguage{yaml}{
+  keywords={true,false,null,y,n},
+  sensitive=true,
+  comment=[l]{\#},
+  morestring=[b]',
+  morestring=[b]"
+}
+
+\lstdefinelanguage{ini}{
+  keywords={true,false,null,section},
+  sensitive=true,
+  comment=[l]{;},
+  morestring=[b]',
+  morestring=[b]"
+}
+
+\lstdefinelanguage{json}{
+  keywords={true,false,null},
+  sensitive=true,
+  comment=[l]{//},
+  morestring=[b]",
+  morecomment=[s]{/*}{*/}
+}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    inputencoding=utf8,
+    literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1 {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1 {ñ}{{\~n}}1 {Ñ}{{\~N}}1
+}
+\lstset{style=mystyle}
+
+% Configuración de hyperref
+\hypersetup{
+    colorlinks=true,
+    linkcolor=uniblue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    citecolor=uniblue
+}
+
+% Configuración de headers y footers
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Redes de Comunicaciones III}
+\lhead{Taller No. 1 \textendash{} VPN con IA}
+\rfoot{Página \thepage}
+
+% Configuración de títulos
+\titleformat{\section}
+{\normalfont\Large\bfseries}
+{\thesection}{1em}{}
+
+\titleformat{\subsection}
+{\normalfont\large\bfseries}
+{\thesubsection}{1em}{}
+
+% Configuración de tcolorbox para destacados
+\newtcolorbox{destacado}[1][]{
+    colback=white,
+    colframe=black,
+    boxrule=1pt,
+    title=#1
+}
+
+\newtcolorbox{exito}[1][]{
+    colback=white,
+    colframe=black,
+    boxrule=1pt,
+    title=#1
+}
+
+\newtcolorbox{alerta}[1][]{
+    colback=white,
+    colframe=black,
+    boxrule=1pt,
+    title=#1
+}
+
+% Documento
+\begin{document}
+
+% Incluir todas las secciones
+\input{secciones/portada}
+\input{secciones/resumen-ejecutivo}
+\input{secciones/arquitectura}
+\input{secciones/desarrollo-vpn}
+\input{secciones/qos}
+\input{secciones/sistema-ia}
+\input{secciones/automatizacion}
+\input{secciones/pruebas}
+\input{secciones/conclusiones}
+\input{secciones/referencias}
+\input{secciones/apendices}
+
+\end{document}

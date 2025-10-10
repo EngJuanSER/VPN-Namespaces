@@ -1,0 +1,94 @@
+services:
+  # --- OFICINA PRINCIPAL (SITIO A) ---
+  gateway-a:
+    image: ubuntu:22.04
+    container_name: gateway-a
+    hostname: gateway-a
+    command: tail -f /dev/null
+    networks:
+      internet_simulada:
+      oficina-a:
+        ipv4_address: 172.16.10.10
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+    volumes:
+      - ./config/gateway-a:/etc/wireguard
+
+  cliente-a:
+    image: ubuntu:22.04
+    container_name: cliente-a
+    hostname: cliente-a
+    command: tail -f /dev/null
+    networks:
+      oficina-a:
+        ipv4_address: 172.16.10.2
+    depends_on:
+      - gateway-a
+    cap_add:
+      - NET_ADMIN
+
+  # --- SUCURSAL (SITIO B) Y SERVIDOR VOD ---
+  gateway-b:
+    image: ubuntu:22.04
+    container_name: gateway-b
+    hostname: gateway-b
+    command: tail -f /dev/null
+    networks:
+      internet_simulada:
+      oficina-b:
+        ipv4_address: 172.16.20.10
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+    volumes:
+      - ./config/gateway-b:/etc/wireguard
+
+  cliente-b-vod-server:
+    image: ubuntu:22.04
+    container_name: cliente-b-vod-server
+    hostname: cliente-b-vod-server
+    command: tail -f /dev/null
+    networks:
+      oficina-b:
+        ipv4_address: 172.16.20.2
+    depends_on:
+      - gateway-b
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./vod-data:/var/www/html
+
+  # --- USUARIO REMOTO ---
+  cliente-remoto:
+    image: ubuntu:22.04
+    container_name: cliente-remoto
+    hostname: cliente-remoto
+    command: tail -f /dev/null
+    networks:
+      - internet_simulada
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    volumes:
+      - ./config/cliente-remoto:/etc/wireguard
+
+networks:
+  internet_simulada:
+    driver: bridge
+  oficina-a:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.16.10.0/24
+
+  oficina-b:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.16.20.0/24
+

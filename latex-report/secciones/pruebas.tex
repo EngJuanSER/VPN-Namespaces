@@ -1,0 +1,101 @@
+\section{Pruebas y Validación}
+
+\subsection{Comandos de Operación}
+
+\begin{lstlisting}[language=bash, caption=Comandos principales del sistema]
+# Despliegue completo automatizado
+./setup_network.sh
+
+# Validación de configuración
+./validate_configuration.sh
+
+# Sistema de IA de seguridad
+./setup_security_ai.sh setup
+./setup_security_ai.sh reports
+./setup_security_ai.sh test
+
+# Monitoreo del sistema
+docker exec gateway-a wg show
+docker exec gateway-a iptables -t nat -L
+\end{lstlisting}
+
+\subsection{Resultados de Pruebas}
+
+\begin{exito}[Estado Final del Sistema]
+\begin{itemize}
+    \item \textbf{VPN Site-to-Site}: $\checkmark$ 100\% funcional entre oficinas
+    \item \textbf{VPN Remote Access}: $\checkmark$ Acceso completo desde cliente remoto
+    \item \textbf{QoS}: $\checkmark$ Tres políticas implementadas y validadas
+    \item \textbf{IA Seguridad}: $\checkmark$ Sistema completo operativo
+    \item \textbf{Automatización}: $\checkmark$ Despliegue en un solo comando
+    \item \textbf{Monitoreo}: $\checkmark$ Validación continua automática
+\end{itemize}
+\end{exito}
+
+\subsection{Matriz de Conectividad}
+
+\begin{table}[H]
+\centering
+\caption{Matriz de conectividad verificada}
+\label{tab:optimizaciones}
+\begin{tabular}{|l|l|c|l|}
+\hline
+\textbf{Origen} & \textbf{Destino} & \textbf{Resultado} & \textbf{Comentarios} \\
+\hline
+cliente-remoto & gateway-a (10.0.0.1) & $\checkmark$ Exitoso & Conectividad VPN básica \\
+\hline
+cliente-remoto & cliente-a (172.16.10.2) & $\checkmark$ Exitoso & Acceso a red Oficina A \\
+\hline
+cliente-remoto & cliente-b (172.16.20.2) & $\checkmark$ Exitoso & Acceso a red Oficina B \\
+\hline
+cliente-a & cliente-b (172.16.20.2) & $\checkmark$ Exitoso & Site-to-Site funcional \\
+\hline
+cliente-b & cliente-a (172.16.10.2) & $\checkmark$ Exitoso & Bidireccional confirmado \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Resolución de Problemas}
+
+Durante la implementación se enfrentaron y resolvieron varios desafíos técnicos:
+
+\begin{alerta}[Problema 1: Endpoints Incorrectos]
+\textbf{Síntoma}: Los túneles WireGuard se establecían pero no había tráfico bidireccional\\
+\textbf{Causa}: IPs de endpoints intercambiadas entre gateways\\
+\textbf{Solución}: Corrección de endpoints a las IPs reales asignadas por Docker
+\end{alerta}
+
+\begin{alerta}[Problema 2: Claves Públicas Inconsistentes]
+\textbf{Síntoma}: Cliente remoto enviaba tráfico pero no recibía respuestas\\
+\textbf{Causa}: Clave pública del cliente-remoto no coincidía en gateway-a\\
+\textbf{Solución}: Implementación de generación automática de claves
+\end{alerta}
+
+\begin{alerta}[Problema 3: Inconsistencias de MTU]
+\textbf{Síntoma}: Fragmentación de paquetes y degradación de rendimiento\\
+\textbf{Causa}: MTU por defecto de 65456 en lugar del óptimo 1420\\
+\textbf{Solución}: Configuración explícita de MTU = 1420 en todas las interfaces
+\end{alerta}
+
+\subsection{Optimizaciones Implementadas}
+
+\begin{table}[H]
+\centering
+\caption{Optimizaciones de red implementadas}
+\label{tab:optimizaciones}
+\begin{tabular}{|l|p{8cm}|}
+\hline
+\textbf{Optimización} & \textbf{Beneficio} \\
+\hline
+MTU 1420 & Eliminación de fragmentación de paquetes \\
+\hline
+NAT específico & Mejor rendimiento vs. reglas genéricas \\
+\hline
+Persistent Keepalive & Mantiene conexiones a través de firewalls \\
+\hline
+BBR Congestion Control & Reduce latencia y mejora throughput \\
+\hline
+SFQ Queue Management & Equidad entre flujos de diferentes usuarios \\
+\hline
+\end{tabular}
+\end{table}

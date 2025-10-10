@@ -1,0 +1,98 @@
+\section{Desarrollo e Implementación de VPNs}
+
+\subsection{VPN Site-to-Site}
+
+El objetivo fue interconectar de forma segura la LAN de la Oficina A (\texttt{172.16.10.0/24}) con la de la Oficina B (\texttt{172.16.20.0/24}).
+
+\subsubsection{Generación Automática de Claves}
+
+Implementamos un sistema de generación automática de claves WireGuard para cada despliegue:
+
+\begin{lstlisting}[language=bash, caption=Generación automática de claves WireGuard]
+# Función de generación de claves en setup_network.sh
+generate_wireguard_keys() {
+    local node=$1
+    info "Generando claves para $node..."
+    
+    # Generar par de claves
+    local private_key=$(docker exec $node wg genkey)
+    local public_key=$(echo "$private_key" | docker exec -i $node wg pubkey)
+    
+    echo "$node:$private_key:$public_key"
+}
+
+# Generación para todos los nodos
+gateway_a_keys=$(generate_wireguard_keys gateway-a)
+gateway_b_keys=$(generate_wireguard_keys gateway-b)
+remote_keys=$(generate_wireguard_keys cliente-remoto)
+\end{lstlisting}
+
+\subsubsection{Configuración WireGuard Optimizada}
+
+Las configuraciones WireGuard incluyen optimizaciones específicas para entornos containerizados:
+
+\begin{lstlisting}[language=ini, caption=Configuración Gateway-A]
+[Interface]
+MTU = 1420
+Address = 10.0.0.1/24
+PrivateKey = eNNKD3dLxCEyyNGgcQZlyAq58gX7i1RGAoOjkRkMUGY=
+ListenPort = 51820
+PostUp = iptables -t nat -A POSTROUTING -j MASQUERADE
+PostDown = iptables -t nat -D POSTROUTING -j MASQUERADE
+
+[Peer]
+PublicKey = 0kktbNWIuBjry2k/jJdKWQJIEbOUUpiNGwG8goBIVUg=
+Endpoint = 172.19.0.3:51820
+AllowedIPs = 10.0.0.2/32, 172.16.20.0/24
+PersistentKeepalive = 25
+
+[Peer]
+PublicKey = katVAt+VpmIEJcGw07Zxy6fwyHaAfyt/M62Ma6TFGnw=
+AllowedIPs = 10.0.0.3/32
+PersistentKeepalive = 25
+\end{lstlisting}
+
+\begin{exito}[Optimizaciones Implementadas]
+\begin{itemize}
+    \item \textbf{MTU = 1420}: Optimizado para evitar fragmentación
+    \item \textbf{PersistentKeepalive}: Mantiene conexiones a través de NAT
+    \item \textbf{PostUp/PostDown}: Configuración automática de firewall
+    \item \textbf{AllowedIPs específicas}: Control granular de tráfico
+\end{itemize}
+\end{exito}
+
+\subsection{VPN Remote Access}
+
+Se configuró el acceso seguro para el cliente remoto a ambas redes internas:
+
+\begin{lstlisting}[language=ini, caption=Configuración Cliente Remoto]
+[Interface]
+MTU = 1420
+Address = 10.0.0.3/24
+PrivateKey = IOOQKlEP/gx7lJI6NkGAoGl0G/7Th9WXgfnOPeXjMWE=
+
+[Peer]
+PublicKey = XCVgwd51uNEg+JWMaEn4VU1FpDpAxw5CMax8gxPS6EM=
+Endpoint = 172.19.0.4:51820
+AllowedIPs = 10.0.0.0/24, 172.16.10.0/24, 172.16.20.0/24
+PersistentKeepalive = 25
+\end{lstlisting}
+
+\subsection{Resultados de Conectividad}
+
+\begin{table}[H]
+\centering
+\caption{Matriz de conectividad verificada}
+\label{tab:conectividad}
+\begin{tabular}{llcl}
+\toprule
+\textbf{Origen} & \textbf{Destino} & \textbf{Resultado} & \textbf{Comentarios} \\
+\midrule
+cliente-remoto & gateway-a (10.0.0.1) & \color{green} Exitoso & Conectividad VPN básica \\
+cliente-remoto & cliente-a (172.16.10.2) & \color{green} Exitoso & Acceso a red Oficina A \\
+cliente-remoto & cliente-b (172.16.20.2) & \color{green} Exitoso & Acceso a red Oficina B \\
+cliente-a & cliente-b (172.16.20.2) & \color{green} Exitoso & Site-to-Site funcional \\
+cliente-b & cliente-a (172.16.10.2) & \color{green} Exitoso & Bidireccional confirmado \\
+\bottomrule
+\end{tabular}
+\end{table}

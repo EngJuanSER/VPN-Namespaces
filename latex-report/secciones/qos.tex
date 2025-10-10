@@ -1,0 +1,64 @@
+\section{Implementación de Calidad de Servicio (QoS)}
+
+\subsection{Políticas de QoS Implementadas}
+
+Se implementaron exitosamente tres técnicas principales de QoS en ambos gateways:
+
+\subsubsection{1. Traffic Shaping con HTB}
+
+\begin{lstlisting}[language=bash, caption=Configuración Hierarchical Token Bucket]
+# Configuración de Traffic Shaping
+tc qdisc add dev wg0 root handle 1: htb default 12
+tc class add dev wg0 parent 1: classid 1:1 htb rate 10mbit
+
+# Clases de servicio diferenciadas
+tc class add dev wg0 parent 1:1 classid 1:10 htb rate 3mbit ceil 5mbit   # Alta prioridad
+tc class add dev wg0 parent 1:1 classid 1:11 htb rate 3mbit ceil 7mbit   # Media prioridad  
+tc class add dev wg0 parent 1:1 classid 1:12 htb rate 4mbit ceil 10mbit  # Baja prioridad
+\end{lstlisting}
+
+\subsubsection{2. Traffic Classification con DSCP}
+
+\begin{lstlisting}[language=bash, caption=Marcado DSCP para priorización]
+# Marcado DSCP para diferentes tipos de tráfico
+iptables -t mangle -A OUTPUT -p tcp --dport 22 -j DSCP --set-dscp 46    # SSH - Alta prioridad
+iptables -t mangle -A OUTPUT -p icmp -j DSCP --set-dscp 46               # ICMP - Alta prioridad
+iptables -t mangle -A OUTPUT -p tcp --dport 80 -j DSCP --set-dscp 26     # HTTP - Media prioridad
+iptables -t mangle -A OUTPUT -p tcp --dport 443 -j DSCP --set-dscp 26    # HTTPS - Media prioridad
+\end{lstlisting}
+
+\subsubsection{3. Congestion Control Avanzado}
+
+\begin{lstlisting}[language=bash, caption=Control de congestión y queue management]
+# Configuración de SFQ (Stochastic Fair Queuing)
+tc qdisc add dev wg0 parent 1:10 handle 10: sfq perturb 10
+tc qdisc add dev wg0 parent 1:11 handle 11: sfq perturb 10
+tc qdisc add dev wg0 parent 1:12 handle 12: sfq perturb 10
+
+# Optimización TCP BBR
+echo 'net.core.default_qdisc=fq' >> /etc/sysctl.conf
+echo 'net.ipv4.tcp_congestion_control=bbr' >> /etc/sysctl.conf
+\end{lstlisting}
+
+\subsection{Resultados de QoS}
+
+\begin{destacado}[Métricas de QoS Obtenidas]
+\begin{itemize}
+    \item \textbf{Ancho de banda controlado}: Límite efectivo de 10 Mbps aplicado
+    \item \textbf{Priorización funcional}: Tráfico SSH/ICMP con máxima prioridad
+    \item \textbf{Equidad de flujos}: SFQ garantiza distribución justa de recursos
+    \item \textbf{Latencia optimizada}: Control de congestión BBR reduce bufferbloat
+\end{itemize}
+\end{destacado}
+
+\begin{lstlisting}[language=bash, caption=Estadísticas de tráfico capturadas]
+=== Estadísticas de Clases HTB ===
+Clase 1:10 (Alta Prioridad): 12,120 bytes (202 paquetes)
+Clase 1:12 (Baja Prioridad): 27,416 bytes (328 paquetes)
+Total procesado: 39,536 bytes (530 paquetes)
+
+=== Verificación DSCP ===
+ Marcado DSCP activo para SSH (DSCP 46)
+ Marcado DSCP activo para HTTP/HTTPS (DSCP 26)
+ Clasificación automática funcionando
+\end{lstlisting}

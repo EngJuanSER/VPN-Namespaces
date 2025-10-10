@@ -1,0 +1,71 @@
+\section{Automatización e Infraestructura como Código}
+
+\subsection{Scripts de Automatización}
+
+\subsubsection{Script Maestro}
+
+El script \texttt{setup\_network.sh} automatiza completamente el despliegue:
+
+\begin{lstlisting}[language=bash, caption=Funciones principales del script maestro]
+#!/bin/bash
+# Script maestro para configurar toda la red VPN
+
+# Función para instalar dependencias automáticamente
+install_dependencies() {
+    local container=$1
+    docker exec $container bash -c "
+        apt-get update > /dev/null 2>&1 && \
+        apt-get install -y wireguard-tools iptables iproute2 iputils-ping > /dev/null 2>&1
+    "
+}
+
+# Verificación de contenedores
+verify_containers() {
+    for container in gateway-a gateway-b cliente-a cliente-b-vod-server cliente-remoto; do
+        if ! docker ps | grep -q $container; then
+            error "Contenedor $container no está ejecutándose"
+        fi
+    done
+}
+
+# Función principal
+main() {
+    verify_containers
+    install_dependencies_all
+    generate_wireguard_keys
+    configure_vpn
+    setup_qos
+    setup_security_ai
+    validate_connectivity
+}
+\end{lstlisting}
+
+\subsubsection{Script de Validación}
+
+\begin{lstlisting}[language=bash, caption=Validación automática de configuración]
+#!/bin/bash
+# Script de validación de configuración VPN
+
+# Verificar claves públicas
+gateway_a_real_key=$(docker exec gateway-a wg show | grep "public key" | awk '{print $3}')
+gateway_b_real_key=$(docker exec gateway-b wg show | grep "public key" | awk '{print $3}')
+
+# Verificar conectividad
+docker exec gateway-a ping -c 1 10.0.0.2 >/dev/null 2>&1
+check_result $? "Conectividad Gateway-A a Gateway-B"
+
+docker exec cliente-remoto ping -c 1 10.0.0.1 >/dev/null 2>&1
+check_result $? "Conectividad Cliente-Remoto a Gateway-A"
+\end{lstlisting}
+
+\subsection{Beneficios de la Automatización}
+
+\begin{destacado}[Ventajas Implementadas]
+\begin{itemize}
+    \item \textbf{Reproducibilidad}: El mismo resultado en cualquier entorno
+    \item \textbf{Velocidad}: Configuración completa en menos de 2 minutos
+    \item \textbf{Seguridad}: Generación automática de claves únicas
+    \item \textbf{Validación}: Verificación automática de configuraciones
+    \item \textbf{Troubleshooting}: Diagnóstico integrado y corrección automática
+\end{itemize}
+\end{destacado}

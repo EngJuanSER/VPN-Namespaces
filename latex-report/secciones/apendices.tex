@@ -1,0 +1,222 @@
+\appendix
+
+\section{Archivos de Configuración}
+
+\subsection{Docker Compose Completo}
+
+\begin{lstlisting}[language=yaml, caption=docker-compose.yml]
+version: '3.8'
+
+services:
+  # --- OFICINA PRINCIPAL (SITIO A) ---
+  gateway-a:
+    image: ubuntu:22.04
+    container_name: gateway-a
+    hostname: gateway-a
+    command: tail -f /dev/null
+    networks:
+      internet_simulada:
+      oficina-a:
+        ipv4_address: 172.16.10.10
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+    volumes:
+      - ./config/gateway-a:/etc/wireguard
+
+  cliente-a:
+    image: ubuntu:22.04
+    container_name: cliente-a
+    hostname: cliente-a
+    command: tail -f /dev/null
+    networks:
+      oficina-a:
+        ipv4_address: 172.16.10.2
+    depends_on:
+      - gateway-a
+
+  # --- SUCURSAL (SITIO B) ---
+  gateway-b:
+    image: ubuntu:22.04
+    container_name: gateway-b
+    hostname: gateway-b
+    command: tail -f /dev/null
+    networks:
+      internet_simulada:
+      oficina-b:
+        ipv4_address: 172.16.20.10
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+    volumes:
+      - ./config/gateway-b:/etc/wireguard
+
+networks:
+  internet_simulada:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.0.0/16
+  oficina-a:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.16.10.0/24
+  oficina-b:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.16.20.0/24
+\end{lstlisting}
+
+\section{Scripts de Automatización}
+
+\subsection{Script Principal de Configuración}
+
+\begin{lstlisting}[language=bash, caption=setup\_network.sh (extracto principal)]
+#!/bin/bash
+# Script maestro para configurar toda la infraestructura VPN
+
+set -euo pipefail
+
+# Colores para output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Función de logging
+info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+# Generación automática de claves WireGuard
+generate_wireguard_keys() {
+    local node=$1
+    info "Generando claves para $node..."
+    
+    local private_key=$(docker exec $node wg genkey)
+    local public_key=$(echo "$private_key" | docker exec -i $node wg pubkey)
+    
+    echo "$node:$private_key:$public_key"
+}
+
+# Configuración de QoS
+setup_qos() {
+    info "Configurando QoS en gateways..."
+    
+    for gateway in gateway-a gateway-b; do
+        docker exec $gateway bash -c "
+            # HTB Traffic Shaping
+            tc qdisc add dev wg0 root handle 1: htb default 12
+            tc class add dev wg0 parent 1: classid 1:1 htb rate 10mbit
+            tc class add dev wg0 parent 1:1 classid 1:10 htb rate 3mbit ceil 5mbit
+            tc class add dev wg0 parent 1:1 classid 1:11 htb rate 3mbit ceil 7mbit
+            tc class add dev wg0 parent 1:1 classid 1:12 htb rate 4mbit ceil 10mbit
+            
+            # DSCP Marking
+            iptables -t mangle -A OUTPUT -p tcp --dport 22 -j DSCP --set-dscp 46
+            iptables -t mangle -A OUTPUT -p icmp -j DSCP --set-dscp 46
+        "
+    done
+}
+
+main() {
+    info "Iniciando configuración de laboratorio VPN..."
+    verify_containers
+    install_dependencies_all
+    generate_and_configure_keys
+    configure_vpn_tunnels
+    setup_qos
+    setup_security_ai
+    validate_connectivity
+    success "Configuración completada exitosamente"
+}
+
+main "$@"
+\end{lstlisting}
+
+\section{Configuraciones WireGuard}
+
+\subsection{Gateway-A}
+
+\begin{lstlisting}[language=ini, caption=config/gateway-a/wg0.conf]
+[Interface]
+MTU = 1420
+Address = 10.0.0.1/24
+PrivateKey = eNNKD3dLxCEyyNGgcQZlyAq58gX7i1RGAoOjkRkMUGY=
+ListenPort = 51820
+PostUp = iptables -t nat -A POSTROUTING -s 10.0.0.0/24 -o eth0 -j MASQUERADE; iptables -A FORWARD -i wg0 -j ACCEPT; iptables -A FORWARD -o wg0 -j ACCEPT
+PostDown = iptables -t nat -D POSTROUTING -s 10.0.0.0/24 -o eth0 -j MASQUERADE; iptables -D FORWARD -i wg0 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT
+
+[Peer]
+# Gateway-B (Site-to-Site)
+PublicKey = 0kktbNWIuBjry2k/jJdKWQJIEbOUUpiNGwG8goBIVUg=
+Endpoint = 172.19.0.3:51820
+AllowedIPs = 10.0.0.2/32, 172.16.20.0/24
+PersistentKeepalive = 25
+
+[Peer]
+# Cliente-Remoto (Remote Access)
+PublicKey = katVAt+VpmIEJcGw07Zxy6fwyHaAfyt/M62Ma6TFGnw=
+AllowedIPs = 10.0.0.3/32
+PersistentKeepalive = 25
+\end{lstlisting}
+
+\section{Resultados de Validación}
+
+\subsection{Salida Completa de Validación}
+
+\begin{lstlisting}[language=bash, caption=Resultado de validate\_configuration.sh]
+=== Validación de Configuración VPN ===
+
+1. Verificando contenedores...
+[OK] Todos los contenedores ejecutándose
+
+2. Verificando configuraciones WireGuard...
+[OK] Gateway-A configuración existe - Endpoint: 172.19.0.3:51820
+[OK] Gateway-B configuración existe - Endpoint: 172.19.0.4:51820
+[OK] Cliente-Remoto configuración existe - Endpoint: 172.19.0.4:51820
+
+3. Verificando MTU en configuraciones...
+[OK] MTU 1420 configurado en todos los archivos
+
+4. Verificando claves públicas...
+[OK] Gateway-A espera clave correcta de Gateway-B
+[OK] Gateway-B espera clave correcta de Gateway-A
+[OK] Cliente-Remoto espera clave correcta de Gateway-A
+[OK] Gateway-A conoce clave correcta del Cliente-Remoto
+
+5. Verificando conectividad...
+[OK] Conectividad Gateway-A a Gateway-B
+[OK] Conectividad Cliente-Remoto a Gateway-A
+[OK] Conectividad Cliente-A a Cliente-B (Site-to-Site)
+[OK] Conectividad Cliente-B a Cliente-A (Site-to-Site bidireccional)
+[OK] Conectividad Cliente-Remoto a Cliente-A (Remote Access)
+[OK] Conectividad Cliente-Remoto a Cliente-B (Remote Access)
+
+6. Verificando QoS...
+[OK] HTB configurado en Gateway-A
+[OK] HTB configurado en Gateway-B
+[OK] DSCP marking activo
+
+7. Verificando IA de Seguridad...
+[OK] Sistema de IA operativo
+[OK] Monitoreo en tiempo real activo
+[OK] Reportes JSON generándose correctamente
+
+=== RESUMEN FINAL ===
+[OK] VPN Site-to-Site: FUNCIONAL
+[OK] VPN Remote Access: FUNCIONAL  
+[OK] QoS (3 políticas): IMPLEMENTADO
+[OK] IA de Seguridad: OPERATIVO
+[OK] Automatización: COMPLETA
+
+Estado general: EXITOSO - Todos los objetivos cumplidos
+\end{lstlisting}
