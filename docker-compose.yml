@@ -7,6 +7,7 @@ services:
     command: tail -f /dev/null
     networks:
       internet_simulada:
+        ipv4_address: 172.18.0.2
       oficina-a:
         ipv4_address: 172.16.10.10
     cap_add:
@@ -38,6 +39,7 @@ services:
     command: tail -f /dev/null
     networks:
       internet_simulada:
+        ipv4_address: 172.18.0.3
       oficina-b:
         ipv4_address: 172.16.20.10
     cap_add:
@@ -70,7 +72,8 @@ services:
     hostname: cliente-remoto
     command: tail -f /dev/null
     networks:
-      - internet_simulada
+      internet_simulada:
+        ipv4_address: 172.18.0.4
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
@@ -80,6 +83,9 @@ services:
 networks:
   internet_simulada:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16
   oficina-a:
     driver: bridge
     ipam:

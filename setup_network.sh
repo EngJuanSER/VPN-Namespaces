@@ -23,23 +23,39 @@ install_dependencies() {
     info "Instalando dependencias en $container..."
     
     # Verificar si ya están instaladas las dependencias básicas
-    if docker exec $container which wg > /dev/null 2>&1; then
-        info "WireGuard ya está instalado en $container"
+    if docker exec $container which wg > /dev/null 2>&1 && docker exec $container which iptables > /dev/null 2>&1; then
+        info "WireGuard y herramientas de red ya están instaladas en $container"
         return 0
     fi
     
-    # Actualizar repositorios e instalar WireGuard y herramientas de red
+    # Actualizar repositorios con reintentos
     info "Actualizando repositorios en $container..."
-    if ! docker exec $container bash -c "apt-get update"; then
-        error "Falló la actualización de repositorios en $container"
-    fi
+    for i in 1 2 3; do
+        if docker exec $container bash -c "apt-get update"; then
+            break
+        fi
+        if [ $i -eq 3 ]; then
+            echo "Warning: Falló la actualización de repositorios en $container después de 3 intentos"
+            return 1
+        fi
+        echo "Reintentando actualización en $container (intento $i/3)..."
+        sleep 5
+    done
     
-    info "Instalando paquetes en $container..."
-    if ! docker exec $container bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y wireguard-tools iptables iproute2 iputils-ping traceroute"; then
-        error "Falló la instalación de dependencias en $container"
-    fi
+    # Instalar paquetes esenciales con tolerancia a fallos
+    info "Instalando paquetes esenciales en $container..."
+    docker exec $container bash -c "DEBIAN_FRONTEND=noninteractive apt-get install -y --fix-missing wireguard-tools iptables iproute2 iputils-ping" || {
+        echo "Warning: Algunos paquetes no se pudieron instalar en $container, continuando..."
+    }
     
-    info "Dependencias instaladas exitosamente en $container"
+    # Verificar que al menos WireGuard se instaló
+    if docker exec $container which wg > /dev/null 2>&1; then
+        info "WireGuard instalado exitosamente en $container"
+        return 0
+    else
+        echo "Warning: WireGuard no se pudo instalar en $container, pero continuando..."
+        return 1
+    fi
 }
 
 # Verificar que los contenedores estén ejecutándose
@@ -53,9 +69,19 @@ info "Todos los contenedores están ejecutándose"
 
 # Instalar dependencias en todos los contenedores
 info "Instalando dependencias necesarias..."
+failed_installations=0
 for container in gateway-a gateway-b cliente-a cliente-b-vod-server cliente-remoto; do
-    install_dependencies $container
+    if ! install_dependencies $container; then
+        echo "Warning: Instalación falló en $container, pero continuando..."
+        ((failed_installations++))
+    fi
 done
+
+if [ $failed_installations -gt 0 ]; then
+    echo "Warning: $failed_installations contenedores tuvieron problemas de instalación"
+    echo "Esto puede deberse a limitaciones de ancho de banda del repositorio"
+    echo "La configuración continuará si WireGuard está disponible"
+fi
 
 # Generar claves WireGuard únicas para cada despliegue
 info "Generando claves WireGuard únicas..."
@@ -114,7 +140,7 @@ PostDown = iptables -t nat -D POSTROUTING -j MASQUERADE; iptables -D FORWARD -j 
 [Peer]
 # Gateway-B (Site-to-Site)
 PublicKey = $gateway_b_public
-Endpoint = 172.19.0.3:51820
+Endpoint = 172.18.0.3:51820
 AllowedIPs = 10.0.0.2/32, 172.16.20.0/24
 PersistentKeepalive = 25
 
@@ -138,7 +164,7 @@ PostDown = iptables -t nat -D POSTROUTING -j MASQUERADE; iptables -D FORWARD -j 
 [Peer]
 # Gateway-A (Site-to-Site)
 PublicKey = $gateway_a_public
-Endpoint = 172.19.0.4:51820
+Endpoint = 172.18.0.2:51820
 AllowedIPs = 10.0.0.1/32, 10.0.0.3/32, 172.16.10.0/24
 PersistentKeepalive = 25
 EOF
@@ -153,7 +179,7 @@ PrivateKey = $remote_private
 [Peer]
 # Gateway-A (Remote Access)
 PublicKey = $gateway_a_public
-Endpoint = 172.19.0.4:51820
+Endpoint = 172.18.0.2:51820
 AllowedIPs = 10.0.0.0/24, 172.16.10.0/24, 172.16.20.0/24
 PersistentKeepalive = 25
 EOF
